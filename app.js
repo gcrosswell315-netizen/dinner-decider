@@ -923,8 +923,8 @@ function renderHost(){
     const row=document.createElement('div'); row.className="host-item";
     row.innerHTML=`<span>${esc(r.name)} <span class="hint" style="margin:0">· ${esc(r.foodTypes.join(", "))} · ${priceLabel(r.priceLevel)}</span></span>
       <span style="display:flex;gap:6px">
-        <button class="iconbtn" data-edit="${esc(r.id)}" aria-label="Edit ${esc(r.name)}" style="width:36px;height:36px">✎</button>
-        <button class="iconbtn" data-del="${esc(r.id)}" aria-label="Delete ${esc(r.name)}" style="width:36px;height:36px">🗑</button>
+        <button class="iconbtn" data-edit="${esc(r.id)}" aria-label="Edit ${esc(r.name)}">✎</button>
+        <button class="iconbtn" data-del="${esc(r.id)}" aria-label="Delete ${esc(r.name)}">🗑</button>
       </span>`;
     list.appendChild(row);
   });
