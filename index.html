@@ -42,7 +42,10 @@
   <nav class="progress" aria-label="Setup progress" id="progress"></nav>
 
   <!-- ============ STEP 1 : LOCATION ============ -->
-  <section class="screen" id="screen-1" aria-labelledby="s1h">
+  <!-- "active" in the initial markup so first paint includes step 1;
+       without it the footer renders high then shifts when JS shows the
+       step (Lighthouse CLS 0.24 → ~0). boot() re-syncs the real step. -->
+  <section class="screen active" id="screen-1" aria-labelledby="s1h">
     <div class="panel">
       <h2 id="s1h">Where are we eating?</h2>
       <p class="sub">Houston is the built-in demo city. More cities can be added in the host panel or via JSON import.</p>

@@ -5,7 +5,7 @@
    works fully offline. Bump CACHE_NAME on every deploy so old
    caches are cleared and clients pick up the new build.
    ============================================================ */
-const CACHE_NAME = "dinner-decider-v1";
+const CACHE_NAME = "dinner-decider-v2";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
