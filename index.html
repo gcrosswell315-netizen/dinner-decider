@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Dinner Decider — Nobody Has to Pick. The Game Decides.</title>
+<meta name="description" content="Set the rules, invite the group, and let fate choose one of the best matching restaurants.">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0a0a14">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="icon" href="icons/icon-512.png" sizes="512x512" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<!-- iOS standalone-app behavior -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DinnerDecider">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="confetti" aria-hidden="true"></div>
+<div class="visually-hidden" role="status" aria-live="polite" id="live"></div>
+
+<div class="shell">
+  <header class="top">
+    <div class="logo"><span class="die" aria-hidden="true">🎲</span><span id="appTitle">Dinner Decider</span></div>
+    <span class="demo-badge">Demo restaurant data — verify hours &amp; availability before leaving</span>
+  </header>
+
+  <section class="hero" id="hero">
+    <h1>Nobody Has to Pick. The Game Decides.</h1>
+    <p>Set the rules, invite the group, and let fate choose one of the best matching restaurants. Great food at every price — never “expensive = better.”</p>
+  </section>
+
+  <nav class="progress" aria-label="Setup progress" id="progress"></nav>
+
+  <!-- ============ STEP 1 : LOCATION ============ -->
+  <section class="screen" id="screen-1" aria-labelledby="s1h">
+    <div class="panel">
+      <h2 id="s1h">Where are we eating?</h2>
+      <p class="sub">Houston is the built-in demo city. More cities can be added in the host panel or via JSON import.</p>
+      <div class="row">
+        <div class="field">
+          <label class="lbl" for="fCity">City</label>
+          <input class="input" id="fCity" list="cityList" autocomplete="off" placeholder="Houston">
+          <datalist id="cityList"><option value="Houston"></option></datalist>
+        </div>
+        <div class="field">
+          <label class="lbl" for="fArea">Neighborhood or area <span style="text-transform:none;color:var(--faint)">(optional)</span></label>
+          <input class="input" id="fArea" placeholder="Montrose, Heights, Chinatown…">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label class="lbl" for="fDist">Maximum driving distance</label>
+          <select class="input" id="fDist">
+            <option value="5">Within ~5 miles</option>
+            <option value="10">Within ~10 miles</option>
+            <option value="15" selected>Within ~15 miles</option>
+            <option value="25">Within ~25 miles</option>
+            <option value="999">Anywhere in the metro</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="lbl" for="fZip">ZIP code <span style="text-transform:none;color:var(--faint)">(optional)</span></label>
+          <input class="input" id="fZip" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="77006">
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="btnNearMe" type="button">📍 Near me</button>
+      <p class="hint" id="geoStatus">Uses your browser location once, only to sort by distance. Nothing is uploaded.</p>
+    </div>
+  </section>
+
+  <!-- ============ STEP 2 : CUISINES ============ -->
+  <section class="screen" id="screen-2" aria-labelledby="s2h">
+    <div class="panel">
+      <h2 id="s2h">What sounds good tonight?</h2>
+      <p class="sub">Pick as many as the group can agree on — or pick “Anything” and let the game truly decide.</p>
+      <div class="field">
+        <label class="lbl" for="cuisineSearch">Find a cuisine</label>
+        <input class="input" id="cuisineSearch" placeholder="Search: sushi, dumplings, tacos…" autocomplete="off">
+      </div>
+      <div class="chips" id="cuisineChips" role="group" aria-label="Food categories"></div>
+      <div class="selected-strip" id="cuisineSelected" aria-label="Selected cuisines — tap to remove"></div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 3 : PREFERENCES ============ -->
+  <section class="screen" id="screen-3" aria-labelledby="s3h">
+    <div class="panel">
+      <h2 id="s3h">Set the group’s preferences</h2>
+      <p class="sub">Quality is scored independently of price — a $ taqueria can beat a $$$$ tasting room.</p>
+
+      <div class="field">
+        <span class="lbl" id="lblPrice">Price — pick any that work</span>
+        <div class="chips" id="priceChips" role="group" aria-labelledby="lblPrice"></div>
+      </div>
+
+      <div class="field">
+        <span class="lbl" id="lblAtmo">Atmosphere</span>
+        <div class="chips" id="atmoChips" role="group" aria-labelledby="lblAtmo"></div>
+      </div>
+
+      <div class="field">
+        <span class="lbl" id="lblDining">Food &amp; dining preferences</span>
+        <div class="chips" id="diningChips" role="group" aria-labelledby="lblDining"></div>
+      </div>
+
+      <div class="field">
+        <span class="lbl" id="lblGroup">Group size</span>
+        <div class="counter">
+          <button type="button" id="gsMinus" aria-label="Fewer people">−</button>
+          <span class="val" id="gsVal" aria-live="polite">4</span>
+          <button type="button" id="gsPlus" aria-label="More people">+</button>
+          <span class="hint" id="gsHint">people</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="lbl" id="lblMood">Tonight’s mood</span>
+        <div class="chips" id="moodChips" role="radiogroup" aria-labelledby="lblMood"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 4 : DEAL-BREAKERS ============ -->
+  <section class="screen" id="screen-4" aria-labelledby="s4h">
+    <div class="panel">
+      <h2 id="s4h">Deal-breakers</h2>
+      <p class="sub">Anything the group absolutely will not do tonight. These are hard exclusions.</p>
+      <div class="chips" id="dbChips" role="group" aria-label="Deal-breakers"></div>
+      <div class="field" style="margin-top:18px">
+        <label class="lbl" for="fAvoid">Anything else we should avoid?</label>
+        <textarea class="input" id="fAvoid" placeholder="e.g. nothing with a 90-minute wait, nothing my brother-in-law already vetoed…"></textarea>
+        <p class="hint">Free-text notes are shown to the group but not auto-filtered.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 5 : POOL + GAME SETUP ============ -->
+  <section class="screen" id="screen-5" aria-labelledby="s5h">
+    <div class="panel">
+      <h2 id="s5h">Tonight’s restaurant pool</h2>
+      <p class="sub" id="poolSummary"></p>
+      <div class="pool-tools">
+        <input class="input" id="poolSearch" placeholder="Search the pool…" aria-label="Search the pool">
+        <select class="input" id="poolSort" aria-label="Sort pool">
+          <option value="match">Best match</option>
+          <option value="quality">Highest quality</option>
+          <option value="distance">Closest</option>
+          <option value="price">Lowest price</option>
+          <option value="newest">Newest</option>
+          <option value="group">Best group fit</option>
+        </select>
+        <select class="input" id="poolMin" aria-label="Minimum quality">
+          <option value="0">Any quality</option>
+          <option value="80">Quality 80+</option>
+          <option value="85">Quality 85+</option>
+          <option value="90">Quality 90+</option>
+        </select>
+        <select class="input" id="poolLimit" aria-label="Pool size limit">
+          <option value="6">Top 6</option>
+          <option value="8">Top 8</option>
+          <option value="10" selected>Top 10</option>
+          <option value="12">Top 12</option>
+          <option value="20">Top 20</option>
+        </select>
+      </div>
+      <div class="cards" id="poolCards"></div>
+      <div id="poolEmpty" class="empty" hidden>
+        <div class="big">🍽️</div>
+        <strong>No restaurants match yet</strong>
+        Loosen a filter — try adding a price level, widening the distance, or removing a deal-breaker.
+        <div style="margin-top:14px"><button class="btn btn-ghost btn-sm" id="btnLoosen" type="button">← Back to preferences</button></div>
+      </div>
+      <div id="removedWrap" style="margin-top:16px" hidden>
+        <span class="lbl">Removed from the game — tap to add back</span>
+        <div class="chips" id="removedChips"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>How should the game decide?</h2>
+      <p class="sub">Three ways to play. Pass the phone or share the link — either way, the result is binding.</p>
+      <div class="modes" id="modePick" role="radiogroup" aria-label="Game mode">
+        <button type="button" class="mode" data-mode="fate" role="radio" aria-pressed="false">
+          <span class="micon" aria-hidden="true">🎰</span><h3>Pure Fate</h3>
+          <p>Every restaurant left in the pool has an exactly equal chance.</p>
+        </button>
+        <button type="button" class="mode" data-mode="smart" role="radio" aria-pressed="false">
+          <span class="micon" aria-hidden="true">🧠</span><h3>Smart Random</h3>
+          <p>Weighted randomness: stronger matches get slightly better odds, but everyone can win.</p>
+        </button>
+        <button type="button" class="mode" data-mode="elim" role="radio" aria-pressed="false">
+          <span class="micon" aria-hidden="true">🤫</span><h3>Group Elimination</h3>
+          <p>Pass the phone. Each player secretly kills one option, then fate picks from what survives.</p>
+        </button>
+      </div>
+      <div class="field" id="playersField" style="margin-top:16px" hidden>
+        <span class="lbl">Number of players</span>
+        <div class="counter">
+          <button type="button" id="plMinus" aria-label="Fewer players">−</button>
+          <span class="val" id="plVal" aria-live="polite">4</span>
+          <button type="button" id="plPlus" aria-label="More players">+</button>
+        </div>
+        <p class="hint">Each player takes one secret turn. At least 3 finalists are always protected.</p>
+      </div>
+      <div class="toggle-row">
+        <div><strong>Veto Token</strong><div class="hint" style="margin:0">One shared reroll. Using it permanently removes the first pick — the second result is final and cannot be undone.</div></div>
+        <label class="switch"><input type="checkbox" id="vetoToggle" checked><span class="knob"></span><span class="visually-hidden">Enable veto token</span></label>
+      </div>
+      <div class="toggle-row" style="border-bottom:1px solid var(--line)">
+        <div><strong>Share this game</strong><div class="hint" style="margin:0">Settings and pool are encoded in the link — no account, no server.</div></div>
+      </div>
+      <div class="share-box">
+        <button class="btn btn-ghost btn-sm" id="btnCopyLink" type="button">🔗 Copy game link</button>
+        <button class="btn btn-ghost btn-sm" id="btnCopyInvite" type="button">💬 Copy invitation</button>
+        <button class="btn btn-ghost btn-sm" id="btnNativeShare" type="button" hidden>📤 Share…</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RESULT ============ -->
+  <section class="screen" id="screen-result" aria-labelledby="resH">
+    <div class="result-card winner-wrap" id="resultCard">
+      <div class="art" id="resArt" aria-hidden="true"></div>
+      <div class="body">
+        <h2 id="resH">—</h2>
+        <p class="meta" id="resMeta"></p>
+        <p class="desc" id="resDesc" style="margin-top:10px;color:var(--muted)"></p>
+        <p class="why" id="resWhy" style="margin-top:12px"></p>
+        <p class="meta" id="resAddr" style="margin-top:10px"></p>
+        <div class="result-actions" id="resLinks"></div>
+        <p class="decree">Tonight’s decision has been made. No more group-chat negotiations.</p>
+        <div class="lockline" id="lockLine"></div>
+        <p class="house-rule">House rule: the first valid result is binding unless the group uses its one veto token.</p>
+        <div class="result-actions" style="justify-content:center">
+          <button class="btn btn-ghost" id="btnVeto" type="button">🔥 Use the veto token</button>
+          <button class="btn btn-ghost" id="btnShareResult" type="button">📤 Share result</button>
+          <button class="btn btn-ghost" id="btnCopyResult" type="button">💬 Copy to group chat</button>
+        </div>
+        <div class="result-actions" style="justify-content:center;margin-top:8px">
+          <button class="btn btn-danger btn-sm" id="btnNewRound" type="button">Start a new round</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOST PANEL ============ -->
+  <details class="host" id="hostPanel">
+    <summary>⚙️ Host panel <span class="hint" style="text-transform:none;font-family:var(--font-body);font-weight:400">add / edit restaurants, import, export, settings</span></summary>
+    <div class="inner">
+      <div class="field">
+        <label class="lbl" for="hostTitle">App title</label>
+        <input class="input" id="hostTitle" maxlength="40">
+      </div>
+      <div class="row">
+        <div class="field">
+          <label class="lbl" for="hostMinFinal">Minimum finalists protected in elimination</label>
+          <select class="input" id="hostMinFinal"><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+        </div>
+        <div class="field" style="align-self:end">
+          <div class="toggle-row" style="border:0;padding:6px 0">
+            <strong>Allow weighted randomness (Smart Random)</strong>
+            <label class="switch"><input type="checkbox" id="hostWeighted" checked><span class="knob"></span><span class="visually-hidden">Allow weighted randomness</span></label>
+          </div>
+        </div>
+      </div>
+      <div>
+        <span class="lbl">Restaurants (<span id="hostCount">0</span>)</span>
+        <div class="host-list" id="hostList"></div>
+      </div>
+      <div class="host-grid">
+        <button class="btn btn-ghost btn-sm" id="btnHostAdd" type="button">＋ Add restaurant</button>
+        <button class="btn btn-ghost btn-sm" id="btnExport" type="button">⬇ Export JSON</button>
+        <button class="btn btn-ghost btn-sm" id="btnImport" type="button">⬆ Import JSON</button>
+        <button class="btn btn-ghost btn-sm" id="btnRestore" type="button">↺ Restore Houston demo list</button>
+        <button class="btn btn-danger btn-sm" id="btnClearData" type="button">🗑 Clear saved data</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json,.json" class="visually-hidden" aria-hidden="true" tabindex="-1">
+      <div id="hostEditor" hidden>
+        <span class="lbl" id="hostEditorTitle">Add a restaurant</span>
+        <div class="row">
+          <input class="input" id="heName" placeholder="Name *" aria-label="Restaurant name">
+          <input class="input" id="heHood" placeholder="Neighborhood" aria-label="Neighborhood">
+        </div>
+        <div class="row" style="margin-top:10px">
+          <input class="input" id="heCuisines" placeholder="Cuisines, comma-separated *" aria-label="Cuisines">
+          <select class="input" id="hePrice" aria-label="Price level"><option value="1">$</option><option value="2" selected>$$</option><option value="3">$$$</option><option value="4">$$$$</option></select>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <input class="input" id="heQuality" type="number" min="50" max="100" value="85" aria-label="Quality score 50–100" placeholder="Quality 50–100">
+          <input class="input" id="heTags" placeholder="Atmosphere tags, comma-separated" aria-label="Atmosphere tags">
+        </div>
+        <textarea class="input" id="heDesc" style="margin-top:10px" placeholder="Short description" aria-label="Description"></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-primary btn-sm" id="btnHostSave" type="button">Save restaurant</button>
+          <button class="btn btn-ghost btn-sm" id="btnHostCancel" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <footer class="foot">Demo restaurant data — details are illustrative samples. Verify hours, addresses, and reservations before heading out. · Built as a single offline-friendly HTML file.</footer>
+</div>
+
+<!-- sticky step CTA -->
+<div class="sticky-cta" id="stickyCta">
+  <button class="btn btn-primary" id="btnNext" type="button">Next →</button>
+</div>
+
+<!-- ============ DRAW OVERLAY ============ -->
+<div class="overlay" id="drawOverlay" role="dialog" aria-modal="true" aria-label="The game is deciding">
+  <div class="draw-stage">
+    <div class="countdown" id="cdNum" hidden>3</div>
+    <div class="cycler" id="cycler" hidden><span></span></div>
+    <p class="draw-sub" id="drawSub">Locking in the pool…</p>
+  </div>
+</div>
+
+<!-- ============ ELIMINATION OVERLAY ============ -->
+<div class="overlay" id="elimOverlay" role="dialog" aria-modal="true" aria-label="Group elimination round">
+  <div class="elim-hand" id="elimHand"></div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>
